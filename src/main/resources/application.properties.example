@@ -1,0 +1,29 @@
+# Server Configuration
+server.port=8080
+
+# Database 1 - TIBCO_MS
+db1.datasource.jdbc-url=jdbc:mariadb://localhost:3306/TIBCO_MS
+db1.datasource.username=your_username
+db1.datasource.password=your_password
+db1.datasource.driver-class-name=org.mariadb.jdbc.Driver
+
+# Database 2 - TIBCO_SOI
+db2.datasource.jdbc-url=jdbc:mariadb://localhost:3306/TIBCO_SOI
+db2.datasource.username=your_username
+db2.datasource.password=your_password
+db2.datasource.driver-class-name=org.mariadb.jdbc.Driver
+
+# JPA Configuration
+spring.jpa.open-in-view=false
+
+# DB1 JPA Properties
+db1.jpa.hibernate.dialect=org.hibernate.dialect.MariaDBDialect
+db1.jpa.hibernate.ddl-auto=none
+
+# DB2 JPA Properties
+db2.jpa.hibernate.dialect=org.hibernate.dialect.MariaDBDialect
+db2.jpa.hibernate.ddl-auto=none
+
+# Logging
+logging.level.com.ibm.tibco=INFO
+logging.level.org.hibernate.SQL=DEBUG
