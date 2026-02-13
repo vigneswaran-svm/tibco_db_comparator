@@ -3,6 +3,7 @@ package com.ibm.tibco.controller;
 import lombok.extern.slf4j.Slf4j;
 import com.ibm.tibco.dto.ComparisonRequest;
 import com.ibm.tibco.dto.ComparisonResponse;
+import com.ibm.tibco.dto.ErrorResponse;
 import com.ibm.tibco.model.db1.ComparatorConfigEntity;
 import com.ibm.tibco.model.db1.ComparatorHistoryEntity;
 import com.ibm.tibco.service.ComparisonService;
@@ -72,36 +73,23 @@ public class ComparisonController {
     }
 
     @PostMapping("/configs")
-    public ResponseEntity<?> addConfig(@RequestBody ComparatorConfigEntity config) {
+    public ResponseEntity<ComparatorConfigEntity> addConfig(@RequestBody ComparatorConfigEntity config) {
         log.info("Adding new config - serviceId: {}, tableName: {}", config.getServiceId(), config.getTableName());
 
-        try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(comparisonService.addConfig(config));
-        } catch (Exception e) {
-            log.error("Error adding config", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to add config: " + e.getMessage());
-        }
+        ComparatorConfigEntity saved = comparisonService.addConfig(config);
+        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     @PutMapping("/configs/update")
-    public ResponseEntity<?> updateConfig(@RequestBody ComparatorConfigEntity config) {
+    public ResponseEntity<ComparatorConfigEntity> updateConfig(@RequestBody ComparatorConfigEntity config) {
         log.info("Updating config ID: {}", config.getId());
 
         if (config.getId() == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Config id is required");
+            throw new IllegalArgumentException("Config id is required");
         }
 
-        try {
-            return ResponseEntity.ok(comparisonService.updateConfig(config.getId(), config));
-        } catch (RuntimeException e) {
-            log.error("Config not found with ID: {}", config.getId());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
-        } catch (Exception e) {
-            log.error("Error updating config", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to update config: " + e.getMessage());
-        }
+        ComparatorConfigEntity updated = comparisonService.updateConfig(config.getId(), config);
+        return ResponseEntity.ok(updated);
     }
 
     @GetMapping("/history")

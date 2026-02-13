@@ -153,7 +153,9 @@ class ComparisonControllerTest {
                         .content("{\"serviceId\":\"SVC1\",\"tableName\":\"T1\",\"tableFields\":\"F1\"," +
                                 "\"primaryFields\":\"F1\",\"comparatorExecutionStatus\":\"N\"," +
                                 "\"startDate\":\"2026-02-01T00:00:00\",\"endDate\":\"2026-02-10T23:59:59\"}"))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.status").value("ERROR"))
+                .andExpect(jsonPath("$.message").value("Save failed"));
     }
 
     // ==================== PUT /api/compare/configs/update ====================
@@ -183,7 +185,9 @@ class ComparisonControllerTest {
                         .content("{\"serviceId\":\"SVC1\",\"tableName\":\"T1\",\"tableFields\":\"F1\"," +
                                 "\"primaryFields\":\"F1\",\"comparatorExecutionStatus\":\"N\"," +
                                 "\"startDate\":\"2026-02-01T00:00:00\",\"endDate\":\"2026-02-10T23:59:59\"}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.message").value("Config id is required"));
     }
 
     @Test
@@ -196,7 +200,9 @@ class ComparisonControllerTest {
                         .content("{\"id\":999,\"serviceId\":\"SVC1\",\"tableName\":\"T1\",\"tableFields\":\"F1\"," +
                                 "\"primaryFields\":\"F1\",\"comparatorExecutionStatus\":\"N\"," +
                                 "\"startDate\":\"2026-02-01T00:00:00\",\"endDate\":\"2026-02-10T23:59:59\"}"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value("NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Config not found with id: 999"));
     }
 
     // ==================== GET /api/compare/history ====================
