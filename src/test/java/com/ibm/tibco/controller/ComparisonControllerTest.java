@@ -88,7 +88,7 @@ class ComparisonControllerTest {
     void shouldGetActiveConfigs() throws Exception {
         when(comparisonService.getActiveConfigs()).thenReturn(List.of(
                 ComparatorConfigEntity.builder().id(1L).serviceId("SVC1").tableName("T1")
-                        .tableFields("F1").primaryFields("F1").comparatorExecutionStatus("N")
+                        .tableFields("F1").primaryFields("F1").executionStatus("N")
                         .startDate(LocalDateTime.now()).endDate(LocalDateTime.now()).build()
         ));
 
@@ -130,7 +130,7 @@ class ComparisonControllerTest {
     void shouldAddConfig() throws Exception {
         ComparatorConfigEntity saved = ComparatorConfigEntity.builder()
                 .id(1L).serviceId("SVC1").tableName("T1")
-                .tableFields("F1").primaryFields("F1").comparatorExecutionStatus("N")
+                .tableFields("F1").primaryFields("F1").executionStatus("N")
                 .startDate(LocalDateTime.now()).endDate(LocalDateTime.now()).build();
 
         when(comparisonService.addConfig(any())).thenReturn(saved);
@@ -138,7 +138,7 @@ class ComparisonControllerTest {
         mockMvc.perform(post("/api/compare/configs")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"serviceId\":\"SVC1\",\"tableName\":\"T1\",\"tableFields\":\"F1\"," +
-                                "\"primaryFields\":\"F1\",\"comparatorExecutionStatus\":\"N\"," +
+                                "\"primaryFields\":\"F1\",\"executionStatus\":\"N\"," +
                                 "\"startDate\":\"2026-02-01T00:00:00\",\"endDate\":\"2026-02-10T23:59:59\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.serviceId").value("SVC1"));
@@ -151,7 +151,7 @@ class ComparisonControllerTest {
         mockMvc.perform(post("/api/compare/configs")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"serviceId\":\"SVC1\",\"tableName\":\"T1\",\"tableFields\":\"F1\"," +
-                                "\"primaryFields\":\"F1\",\"comparatorExecutionStatus\":\"N\"," +
+                                "\"primaryFields\":\"F1\",\"executionStatus\":\"N\"," +
                                 "\"startDate\":\"2026-02-01T00:00:00\",\"endDate\":\"2026-02-10T23:59:59\"}"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.status").value("ERROR"))
@@ -164,7 +164,7 @@ class ComparisonControllerTest {
     void shouldUpdateConfig() throws Exception {
         ComparatorConfigEntity updated = ComparatorConfigEntity.builder()
                 .id(1L).serviceId("UPDATED").tableName("T1")
-                .tableFields("F1").primaryFields("F1").comparatorExecutionStatus("N")
+                .tableFields("F1").primaryFields("F1").executionStatus("N")
                 .startDate(LocalDateTime.now()).endDate(LocalDateTime.now()).build();
 
         when(comparisonService.updateConfig(eq(1L), any())).thenReturn(updated);
@@ -172,7 +172,7 @@ class ComparisonControllerTest {
         mockMvc.perform(put("/api/compare/configs/update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"id\":1,\"serviceId\":\"UPDATED\",\"tableName\":\"T1\",\"tableFields\":\"F1\"," +
-                                "\"primaryFields\":\"F1\",\"comparatorExecutionStatus\":\"N\"," +
+                                "\"primaryFields\":\"F1\",\"executionStatus\":\"N\"," +
                                 "\"startDate\":\"2026-02-01T00:00:00\",\"endDate\":\"2026-02-10T23:59:59\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.serviceId").value("UPDATED"));
@@ -183,7 +183,7 @@ class ComparisonControllerTest {
         mockMvc.perform(put("/api/compare/configs/update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"serviceId\":\"SVC1\",\"tableName\":\"T1\",\"tableFields\":\"F1\"," +
-                                "\"primaryFields\":\"F1\",\"comparatorExecutionStatus\":\"N\"," +
+                                "\"primaryFields\":\"F1\",\"executionStatus\":\"N\"," +
                                 "\"startDate\":\"2026-02-01T00:00:00\",\"endDate\":\"2026-02-10T23:59:59\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value("BAD_REQUEST"))
@@ -198,7 +198,7 @@ class ComparisonControllerTest {
         mockMvc.perform(put("/api/compare/configs/update")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"id\":999,\"serviceId\":\"SVC1\",\"tableName\":\"T1\",\"tableFields\":\"F1\"," +
-                                "\"primaryFields\":\"F1\",\"comparatorExecutionStatus\":\"N\"," +
+                                "\"primaryFields\":\"F1\",\"executionStatus\":\"N\"," +
                                 "\"startDate\":\"2026-02-01T00:00:00\",\"endDate\":\"2026-02-10T23:59:59\"}"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value("NOT_FOUND"))

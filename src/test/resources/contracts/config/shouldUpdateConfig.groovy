@@ -17,7 +17,7 @@ Contract.make {
             tableName                : "UPDATED_TABLE",
             tableFields              : "FIELD1,FIELD2",
             primaryFields            : "FIELD1",
-            comparatorExecutionStatus: "N",
+            executionStatus: "N",
             startDate                : "2026-02-01T00:00:00",
             endDate                  : "2026-02-10T23:59:59"
         ])

@@ -63,7 +63,7 @@ class ComparatorConfigEntityTest {
                 .tableName("TABLE1")
                 .tableFields("F1,F2")
                 .primaryFields("F1")
-                .comparatorExecutionStatus("N")
+                .executionStatus("N")
                 .startDate(now)
                 .endDate(now.plusDays(1))
                 .createdAt(now)
@@ -75,7 +75,7 @@ class ComparatorConfigEntityTest {
         assertEquals("TABLE1", entity.getTableName());
         assertEquals("F1,F2", entity.getTableFields());
         assertEquals("F1", entity.getPrimaryFields());
-        assertEquals("N", entity.getComparatorExecutionStatus());
+        assertEquals("N", entity.getExecutionStatus());
         assertEquals(now, entity.getStartDate());
         assertEquals(now.plusDays(1), entity.getEndDate());
         assertEquals(now, entity.getCreatedAt());
@@ -93,7 +93,7 @@ class ComparatorConfigEntityTest {
         assertNull(entity.getTableName());
         assertNull(entity.getTableFields());
         assertNull(entity.getPrimaryFields());
-        assertNull(entity.getComparatorExecutionStatus());
+        assertNull(entity.getExecutionStatus());
         assertNull(entity.getStartDate());
         assertNull(entity.getEndDate());
         assertNull(entity.getCreatedAt());
@@ -112,7 +112,7 @@ class ComparatorConfigEntityTest {
         entity.setTableName("TEST_TABLE");
         entity.setTableFields("FIELD_A,FIELD_B");
         entity.setPrimaryFields("FIELD_A");
-        entity.setComparatorExecutionStatus("Y");
+        entity.setExecutionStatus("Y");
         entity.setStartDate(now);
         entity.setEndDate(now.plusHours(12));
         entity.setCreatedAt(now);
@@ -123,7 +123,7 @@ class ComparatorConfigEntityTest {
         assertEquals("TEST_TABLE", entity.getTableName());
         assertEquals("FIELD_A,FIELD_B", entity.getTableFields());
         assertEquals("FIELD_A", entity.getPrimaryFields());
-        assertEquals("Y", entity.getComparatorExecutionStatus());
+        assertEquals("Y", entity.getExecutionStatus());
         assertEquals(now, entity.getStartDate());
         assertEquals(now.plusHours(12), entity.getEndDate());
     }
@@ -135,11 +135,11 @@ class ComparatorConfigEntityTest {
         LocalDateTime now = LocalDateTime.of(2026, 2, 1, 0, 0);
         ComparatorConfigEntity e1 = ComparatorConfigEntity.builder()
                 .id(1L).serviceId("SVC").tableName("T").tableFields("F")
-                .primaryFields("P").comparatorExecutionStatus("N")
+                .primaryFields("P").executionStatus("N")
                 .startDate(now).endDate(now).build();
         ComparatorConfigEntity e2 = ComparatorConfigEntity.builder()
                 .id(1L).serviceId("SVC").tableName("T").tableFields("F")
-                .primaryFields("P").comparatorExecutionStatus("N")
+                .primaryFields("P").executionStatus("N")
                 .startDate(now).endDate(now).build();
 
         assertEquals(e1, e2);

@@ -70,7 +70,7 @@ class ComparisonServiceTest {
                 .tableName(tableName)
                 .tableFields("FIELD1,FIELD2,FIELD3")
                 .primaryFields("FIELD1")
-                .comparatorExecutionStatus("N")
+                .executionStatus("N")
                 .startDate(LocalDateTime.of(2026, 2, 1, 0, 0))
                 .endDate(LocalDateTime.of(2026, 2, 10, 23, 59, 59))
                 .build();
@@ -477,12 +477,12 @@ class ComparisonServiceTest {
         @Test
         void shouldGetActiveConfigs() {
             List<ComparatorConfigEntity> configs = List.of(buildConfig(1L, "SVC1", "T1"));
-            when(configRepository.findByComparatorExecutionStatus("N")).thenReturn(configs);
+            when(configRepository.findByExecutionStatus("N")).thenReturn(configs);
 
             List<ComparatorConfigEntity> result = comparisonService.getActiveConfigs();
 
             assertEquals(1, result.size());
-            verify(configRepository).findByComparatorExecutionStatus("N");
+            verify(configRepository).findByExecutionStatus("N");
         }
 
         @Test

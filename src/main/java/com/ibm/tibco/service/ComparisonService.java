@@ -143,7 +143,7 @@ public class ComparisonService {
 
                 // Only update config status to 'Y' when records were found and compared
                 if (!result.noRecords && !result.hasError) {
-                    config.setComparatorExecutionStatus("Y");
+                    config.setExecutionStatus("Y");
                     config.setUpdatedAt(LocalDateTime.now());
                     configRepository.save(config);
                     log.info("Updated config ID: {} status to 'Y'", config.getId());
@@ -421,7 +421,7 @@ public class ComparisonService {
     // ==================== Config Management ====================
 
     public List<ComparatorConfigEntity> getActiveConfigs() {
-        return configRepository.findByComparatorExecutionStatus("N");
+        return configRepository.findByExecutionStatus("N");
     }
 
     public List<ComparatorConfigEntity> getAllConfigs() {
@@ -444,7 +444,7 @@ public class ComparisonService {
         existing.setTableName(updatedConfig.getTableName());
         existing.setTableFields(updatedConfig.getTableFields());
         existing.setPrimaryFields(updatedConfig.getPrimaryFields());
-        existing.setComparatorExecutionStatus(updatedConfig.getComparatorExecutionStatus());
+        existing.setExecutionStatus(updatedConfig.getExecutionStatus());
         existing.setStartDate(updatedConfig.getStartDate());
         existing.setEndDate(updatedConfig.getEndDate());
 

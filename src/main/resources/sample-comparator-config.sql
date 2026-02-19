@@ -7,7 +7,7 @@ INSERT INTO COMPARATOR_CONFIG (
     table_name,
     table_fields,
     primary_fields,
-    comparator_execution_status,
+    execution_status,
     start_date,
     end_date
 ) VALUES (
@@ -28,7 +28,7 @@ INSERT INTO COMPARATOR_CONFIG (
     table_name,
     table_fields,
     primary_fields,
-    comparator_execution_status,
+    execution_status,
     start_date,
     end_date
 ) VALUES (
@@ -43,10 +43,10 @@ INSERT INTO COMPARATOR_CONFIG (
 */
 
 -- Query to view all active configurations
-SELECT * FROM COMPARATOR_CONFIG WHERE comparator_execution_status = 'N';
+SELECT * FROM COMPARATOR_CONFIG WHERE execution_status = 'N';
 
 -- Query to disable a configuration (set to 'Y' to disable)
--- UPDATE COMPARATOR_CONFIG SET comparator_execution_status = 'Y' WHERE id = 1;
+-- UPDATE COMPARATOR_CONFIG SET execution_status = 'Y' WHERE id = 1;
 
 -- Query to enable a configuration
--- UPDATE COMPARATOR_CONFIG SET comparator_execution_status = 'N' WHERE id = 1;
+-- UPDATE COMPARATOR_CONFIG SET execution_status = 'N' WHERE id = 1;

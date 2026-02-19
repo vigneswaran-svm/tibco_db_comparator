@@ -3,7 +3,6 @@ package com.ibm.tibco.controller;
 import lombok.extern.slf4j.Slf4j;
 import com.ibm.tibco.dto.ComparisonRequest;
 import com.ibm.tibco.dto.ComparisonResponse;
-import com.ibm.tibco.dto.ErrorResponse;
 import com.ibm.tibco.model.db1.ComparatorConfigEntity;
 import com.ibm.tibco.model.db1.ComparatorHistoryEntity;
 import com.ibm.tibco.service.ComparisonService;

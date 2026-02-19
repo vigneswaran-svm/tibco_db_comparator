@@ -32,8 +32,8 @@ public class ComparatorConfigEntity {
     @Column(name = "primary_fields", nullable = false, columnDefinition = "TEXT")
     private String primaryFields;
 
-    @Column(name = "comparator_execution_status", nullable = false, length = 1)
-    private String comparatorExecutionStatus;
+    @Column(name = "execution_status", nullable = false, length = 1)
+    private String executionStatus;
 
     @Column(name = "start_date", nullable = false)
     private LocalDateTime startDate;

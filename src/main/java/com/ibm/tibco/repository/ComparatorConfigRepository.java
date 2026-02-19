@@ -11,10 +11,10 @@ import java.util.List;
 @Repository
 public interface ComparatorConfigRepository extends JpaRepository<ComparatorConfigEntity, Long> {
 
-    List<ComparatorConfigEntity> findByComparatorExecutionStatus(String status);
+    List<ComparatorConfigEntity> findByExecutionStatus(String status);
 
     @Query("SELECT c FROM ComparatorConfigEntity c WHERE " +
-           "c.comparatorExecutionStatus = 'N' " +
+           "c.executionStatus = 'N' " +
            "AND (:serviceId IS NULL OR c.serviceId = :serviceId) " +
            "AND (:tableName IS NULL OR c.tableName = :tableName)")
     List<ComparatorConfigEntity> findActiveConfigsWithFilters(

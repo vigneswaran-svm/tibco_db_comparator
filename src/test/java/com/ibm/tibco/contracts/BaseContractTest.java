@@ -104,7 +104,7 @@ public abstract class BaseContractTest {
                 .tableName(tableName)
                 .tableFields("FIELD1,FIELD2")
                 .primaryFields("FIELD1")
-                .comparatorExecutionStatus(status)
+                .executionStatus(status)
                 .startDate(LocalDateTime.of(2026, 2, 1, 0, 0))
                 .endDate(LocalDateTime.of(2026, 2, 10, 23, 59, 59))
                 .createdAt(LocalDateTime.now())
@@ -122,7 +122,6 @@ public abstract class BaseContractTest {
                 .msTableValues("{\"FIELD1\":\"val1\"}")
                 .soiTableValues("{\"FIELD1\":\"val1\"}")
                 .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
                 .build();
     }
 }

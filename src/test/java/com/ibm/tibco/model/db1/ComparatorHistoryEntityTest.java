@@ -14,40 +14,10 @@ class ComparatorHistoryEntityTest {
     void shouldSetTimestamps_onPrePersist() {
         ComparatorHistoryEntity entity = new ComparatorHistoryEntity();
         assertNull(entity.getCreatedAt());
-        assertNull(entity.getUpdatedAt());
 
         entity.onCreate();
 
         assertNotNull(entity.getCreatedAt());
-        assertNotNull(entity.getUpdatedAt());
-        // createdAt and updatedAt are set by separate LocalDateTime.now() calls,
-        // so allow a small difference (< 1 second)
-        assertTrue(java.time.Duration.between(entity.getCreatedAt(), entity.getUpdatedAt()).toMillis() < 1000);
-    }
-
-    // ==================== @PreUpdate ====================
-
-    @Test
-    void shouldUpdateTimestamp_onPreUpdate() {
-        ComparatorHistoryEntity entity = new ComparatorHistoryEntity();
-        entity.onCreate();
-        LocalDateTime originalUpdatedAt = entity.getUpdatedAt();
-
-        entity.onUpdate();
-
-        assertNotNull(entity.getUpdatedAt());
-        assertTrue(entity.getUpdatedAt().compareTo(originalUpdatedAt) >= 0);
-    }
-
-    @Test
-    void shouldNotChangeCreatedAt_onPreUpdate() {
-        ComparatorHistoryEntity entity = new ComparatorHistoryEntity();
-        entity.onCreate();
-        LocalDateTime originalCreatedAt = entity.getCreatedAt();
-
-        entity.onUpdate();
-
-        assertEquals(originalCreatedAt, entity.getCreatedAt());
     }
 
     // ==================== Builder ====================
@@ -64,7 +34,6 @@ class ComparatorHistoryEntityTest {
                 .msTableValues("{\"F1\":\"val1\"}")
                 .soiTableValues("{\"F1\":\"val1\"}")
                 .createdAt(now)
-                .updatedAt(now)
                 .build();
 
         assertEquals(1L, entity.getId());
@@ -75,7 +44,6 @@ class ComparatorHistoryEntityTest {
         assertEquals("{\"F1\":\"val1\"}", entity.getMsTableValues());
         assertEquals("{\"F1\":\"val1\"}", entity.getSoiTableValues());
         assertEquals(now, entity.getCreatedAt());
-        assertEquals(now, entity.getUpdatedAt());
     }
 
     // ==================== NoArgsConstructor ====================
@@ -92,7 +60,6 @@ class ComparatorHistoryEntityTest {
         assertNull(entity.getMsTableValues());
         assertNull(entity.getSoiTableValues());
         assertNull(entity.getCreatedAt());
-        assertNull(entity.getUpdatedAt());
     }
 
     // ==================== Setters ====================
@@ -110,7 +77,6 @@ class ComparatorHistoryEntityTest {
         entity.setMsTableValues("{\"X\":\"1\"}");
         entity.setSoiTableValues("{\"X\":\"2\"}");
         entity.setCreatedAt(now);
-        entity.setUpdatedAt(now);
 
         assertEquals(10L, entity.getId());
         assertEquals("HISTORY_SVC", entity.getServiceId());
@@ -120,7 +86,6 @@ class ComparatorHistoryEntityTest {
         assertEquals("{\"X\":\"1\"}", entity.getMsTableValues());
         assertEquals("{\"X\":\"2\"}", entity.getSoiTableValues());
         assertEquals(now, entity.getCreatedAt());
-        assertEquals(now, entity.getUpdatedAt());
     }
 
     // ==================== Equals & HashCode ====================
