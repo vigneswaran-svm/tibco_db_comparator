@@ -27,6 +27,12 @@ public class DatabaseConfig {
     @Value("${db1.jpa.hibernate.ddl-auto}")
     private String db1DdlAuto;
 
+    @Value("${db1.jpa.hibernate.jdbc.batch_size}")
+    private String db1BatchSize;
+
+    @Value("${db1.jpa.hibernate.order_inserts}")
+    private String db1OrderInserts;
+
     @Value("${db2.jpa.hibernate.dialect}")
     private String db2Dialect;
 
@@ -49,6 +55,8 @@ public class DatabaseConfig {
         Map<String, Object> properties = new HashMap<>();
         properties.put("hibernate.dialect", db1Dialect);
         properties.put("hibernate.hbm2ddl.auto", db1DdlAuto);
+        properties.put("hibernate.jdbc.batch_size", db1BatchSize);
+        properties.put("hibernate.order_inserts", db1OrderInserts);
 
         return builder
                 .dataSource(dataSource)

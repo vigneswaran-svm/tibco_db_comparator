@@ -14,15 +14,19 @@ import jakarta.persistence.Query;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -43,6 +47,12 @@ public class ComparisonService {
     @Autowired
     @Qualifier("db1TransactionManager")
     private PlatformTransactionManager db1TransactionManager;
+
+    @Value("${comparison.fetch-size:500}")
+    private int fetchSize;
+
+    @Value("${comparison.batch-size:50}")
+    private int batchSize;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -176,124 +186,175 @@ public class ComparisonService {
 
         log.info("Table fields: {}, Primary keys: {}", tableFields, primaryFields);
 
-        // Fetch records — errors are distinguished from empty results
-        List<Map<String, Object>> msRecords;
-        List<Map<String, Object>> soiRecords;
+        Stream<Map<String, Object>> msStreamOpened;
+        Stream<Map<String, Object>> soiStreamOpened;
         boolean msError = false;
         boolean soiError = false;
 
         try {
-            msRecords = fetchRecords(msEntityManager, config, tableFields, primaryFields);
+            msStreamOpened = streamRecords(msEntityManager, config, tableFields, primaryFields);
         } catch (Exception e) {
             log.error("Error fetching MS records for table '{}': {}", config.getTableName(), e.getMessage());
-            msRecords = Collections.emptyList();
+            msStreamOpened = Stream.empty();
             msError = true;
         }
 
         try {
-            soiRecords = fetchRecords(soiEntityManager, config, tableFields, primaryFields);
+            soiStreamOpened = streamRecords(soiEntityManager, config, tableFields, primaryFields);
         } catch (Exception e) {
             log.error("Error fetching SOI records for table '{}': {}", config.getTableName(), e.getMessage());
-            soiRecords = Collections.emptyList();
+            soiStreamOpened = Stream.empty();
             soiError = true;
         }
 
-        result.msRecordCount = msRecords.size();
-        result.soiRecordCount = soiRecords.size();
-
-        log.info("Fetched {} MS records, {} SOI records (msError={}, soiError={})",
-                msRecords.size(), soiRecords.size(), msError, soiError);
-
-        // Handle fetch errors — save error history and return
         if (msError || soiError) {
             String errorDetail = msError && soiError ? "Error in both DBs"
                     : msError ? "Error in MS DB" : "Error in SOI DB";
             saveHistoryRecord(config, String.join(",", tableFields), "ERROR", errorDetail, errorDetail);
             result.hasError = true;
+            msStreamOpened.close();
+            soiStreamOpened.close();
             return;
         }
 
-        // Handle empty results — save no-record history
-        if (msRecords.isEmpty() && soiRecords.isEmpty()) {
-            log.warn("No records found in table '{}' for the given date range", config.getTableName());
-            saveHistoryRecord(config, String.join(",", tableFields), "NO_RECORD", "NO_RECORDS", "NO_RECORDS");
-            result.noRecords = true;
-            return;
-        }
-        if (msRecords.isEmpty()) {
-            log.warn("No records found in MS DB for table '{}'", config.getTableName());
-            saveHistoryRecord(config, String.join(",", tableFields), "NO_RECORD",
-                    "NO_RECORDS", soiRecords.size() + " records exist in SOI");
-            result.noRecords = true;
-            result.failureCount = soiRecords.size();
-            return;
-        }
-        if (soiRecords.isEmpty()) {
-            log.warn("No records found in SOI DB for table '{}'", config.getTableName());
-            saveHistoryRecord(config, String.join(",", tableFields), "NO_RECORD",
-                    msRecords.size() + " records exist in MS", "NO_RECORDS");
-            result.noRecords = true;
-            result.failureCount = msRecords.size();
-            return;
-        }
+        final Stream<Map<String, Object>> msStream = msStreamOpened;
+        final Stream<Map<String, Object>> soiStream = soiStreamOpened;
 
-        // Group records by primary key (supports multiple records per key)
-        Map<String, List<Map<String, Object>>> msMap = groupRecordsByKey(msRecords, primaryFields);
-        Map<String, List<Map<String, Object>>> soiMap = groupRecordsByKey(soiRecords, primaryFields);
+        try (msStream; soiStream) {
+            Iterator<Map<String, Object>> msIter = msStream.iterator();
+            Iterator<Map<String, Object>> soiIter = soiStream.iterator();
 
-        Set<String> allKeys = new LinkedHashSet<>();
-        allKeys.addAll(msMap.keySet());
-        allKeys.addAll(soiMap.keySet());
+            Map<String, Object> msRow = advance(msIter);
+            Map<String, Object> soiRow = advance(soiIter);
 
-        for (String key : allKeys) {
-            List<Map<String, Object>> msList = msMap.getOrDefault(key, Collections.emptyList());
-            List<Map<String, Object>> soiList = soiMap.getOrDefault(key, Collections.emptyList());
+            // Both empty
+            if (msRow == null && soiRow == null) {
+                log.warn("No records found in table '{}' for the given date range", config.getTableName());
+                saveHistoryRecord(config, String.join(",", tableFields), "NO_RECORD", "NO_RECORDS", "NO_RECORDS");
+                result.noRecords = true;
+                return;
+            }
+            // MS empty, SOI has records — count SOI records
+            if (msRow == null) {
+                log.warn("No records found in MS DB for table '{}'", config.getTableName());
+                int soiCount = 1; // already have one row
+                while (soiIter.hasNext()) { soiIter.next(); soiCount++; }
+                result.soiRecordCount = soiCount;
+                saveHistoryRecord(config, String.join(",", tableFields), "NO_RECORD",
+                        "NO_RECORDS", soiCount + " records exist in SOI");
+                result.noRecords = true;
+                result.failureCount = soiCount;
+                return;
+            }
+            // SOI empty, MS has records — count MS records
+            if (soiRow == null) {
+                log.warn("No records found in SOI DB for table '{}'", config.getTableName());
+                int msCount = 1;
+                while (msIter.hasNext()) { msIter.next(); msCount++; }
+                result.msRecordCount = msCount;
+                saveHistoryRecord(config, String.join(",", tableFields), "NO_RECORD",
+                        msCount + " records exist in MS", "NO_RECORDS");
+                result.noRecords = true;
+                result.failureCount = msCount;
+                return;
+            }
 
-            int maxSize = Math.max(msList.size(), soiList.size());
+            // Main merge loop
+            List<ComparatorHistoryEntity> batch = new ArrayList<>(batchSize);
 
-            for (int i = 0; i < maxSize; i++) {
-                Map<String, Object> msRecord = i < msList.size() ? msList.get(i) : null;
-                Map<String, Object> soiRecord = i < soiList.size() ? soiList.get(i) : null;
+            while (msRow != null || soiRow != null) {
+                String msKey = msRow != null ? buildKey(msRow, primaryFields) : null;
+                String soiKey = soiRow != null ? buildKey(soiRow, primaryFields) : null;
 
-                String status;
-                List<String> differentFields;
+                int cmp = compareKeys(msKey, soiKey);
 
-                if (msRecord == null) {
-                    status = "MISSING_IN_MS";
-                    differentFields = tableFields;
-                } else if (soiRecord == null) {
-                    status = "MISSING_IN_SOI";
-                    differentFields = tableFields;
-                } else {
-                    differentFields = findDifferentFields(msRecord, soiRecord, tableFields);
-                    status = differentFields.isEmpty() ? "MATCH" : "MISMATCH";
-                }
+                if (cmp == 0) {
+                    // Keys equal — collect all duplicates with same key from both sides
+                    List<Map<String, Object>> msDups = new ArrayList<>();
+                    msDups.add(msRow);
+                    result.msRecordCount++;
+                    msRow = advance(msIter);
+                    while (msRow != null && buildKey(msRow, primaryFields).equals(msKey)) {
+                        msDups.add(msRow);
+                        result.msRecordCount++;
+                        msRow = advance(msIter);
+                    }
 
-                String msValues = msRecord != null ? convertToJson(msRecord) : "MISSING";
-                String soiValues = soiRecord != null ? convertToJson(soiRecord) : "MISSING";
-                String diffFields = differentFields.isEmpty()
-                        ? String.join(",", tableFields)
-                        : String.join(",", differentFields);
+                    List<Map<String, Object>> soiDups = new ArrayList<>();
+                    soiDups.add(soiRow);
+                    result.soiRecordCount++;
+                    soiRow = advance(soiIter);
+                    while (soiRow != null && buildKey(soiRow, primaryFields).equals(soiKey)) {
+                        soiDups.add(soiRow);
+                        result.soiRecordCount++;
+                        soiRow = advance(soiIter);
+                    }
 
-                saveHistoryRecord(config, diffFields, status, msValues, soiValues);
+                    int maxSize = Math.max(msDups.size(), soiDups.size());
+                    for (int i = 0; i < maxSize; i++) {
+                        Map<String, Object> ms = i < msDups.size() ? msDups.get(i) : null;
+                        Map<String, Object> soi = i < soiDups.size() ? soiDups.get(i) : null;
 
-                if ("MATCH".equals(status)) {
-                    result.successCount++;
-                } else {
+                        String status;
+                        List<String> differentFields;
+
+                        if (ms == null) {
+                            status = "MISSING_IN_MS";
+                            differentFields = tableFields;
+                        } else if (soi == null) {
+                            status = "MISSING_IN_SOI";
+                            differentFields = tableFields;
+                        } else {
+                            differentFields = findDifferentFields(ms, soi, tableFields);
+                            status = differentFields.isEmpty() ? "MATCH" : "MISMATCH";
+                        }
+
+                        addToHistoryBatch(batch, config, differentFields, tableFields, status, ms, soi);
+
+                        if ("MATCH".equals(status)) {
+                            result.successCount++;
+                        } else {
+                            result.failureCount++;
+                        }
+
+                        if (batch.size() >= batchSize) {
+                            flushBatch(batch);
+                        }
+                    }
+                } else if (cmp < 0) {
+                    // MS key < SOI key → MISSING_IN_SOI
+                    addToHistoryBatch(batch, config, tableFields, tableFields, "MISSING_IN_SOI", msRow, null);
                     result.failureCount++;
+                    result.msRecordCount++;
+                    msRow = advance(msIter);
+
+                    if (batch.size() >= batchSize) {
+                        flushBatch(batch);
+                    }
+                } else {
+                    // MS key > SOI key → MISSING_IN_MS
+                    addToHistoryBatch(batch, config, tableFields, tableFields, "MISSING_IN_MS", null, soiRow);
+                    result.failureCount++;
+                    result.soiRecordCount++;
+                    soiRow = advance(soiIter);
+
+                    if (batch.size() >= batchSize) {
+                        flushBatch(batch);
+                    }
                 }
+            }
+
+            // Flush remaining
+            if (!batch.isEmpty()) {
+                flushBatch(batch);
             }
         }
     }
 
-    // ==================== Record Fetching ====================
+    // ==================== Streaming ====================
 
-    /**
-     * Fetches records from the given EntityManager. Throws exceptions on SQL errors
-     * so the caller can distinguish errors from empty results.
-     */
     @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> fetchRecords(
+    private Stream<Map<String, Object>> streamRecords(
             EntityManager entityManager, ComparatorConfigEntity config,
             List<String> fields, List<String> primaryFields) {
 
@@ -302,44 +363,101 @@ public class ComparisonService {
         fields.forEach(f -> allFields.add(f.trim()));
 
         String fieldList = String.join(", ", allFields);
+        String orderBy = primaryFields.stream()
+                .map(String::trim)
+                .collect(Collectors.joining(", "));
         String startDateStr = config.getStartDate().format(DATE_FORMATTER);
         String endDateStr = config.getEndDate().format(DATE_FORMATTER);
 
+        String updatedByFilter = buildUpdatedByFilter(config.getServiceNameWhitelist());
         String sql = String.format(
-                "SELECT %s FROM %s WHERE LAST_UPDT_TS >= '%s' AND LAST_UPDT_TS <= '%s'",
-                fieldList, config.getTableName(), startDateStr, endDateStr);
+                "SELECT %s FROM %s WHERE LAST_UPDT_TS >= '%s' AND LAST_UPDT_TS <= '%s'%s ORDER BY %s",
+                fieldList, config.getTableName(), startDateStr, endDateStr, updatedByFilter, orderBy);
 
-        log.debug("Executing query: {}", sql);
+        log.debug("Executing streaming query: {}", sql);
 
         Query query = entityManager.createNativeQuery(sql);
-        List<Object[]> results = query.getResultList();
+        query.setHint("org.hibernate.fetchSize", fetchSize);
 
         List<String> columnNames = new ArrayList<>(allFields);
-        List<Map<String, Object>> records = new ArrayList<>();
+        boolean singleColumn = columnNames.size() == 1;
 
-        for (Object[] row : results) {
+        Stream<Object> rawStream = query.getResultStream();
+        return rawStream.map(row -> {
             Map<String, Object> record = new HashMap<>();
-            for (int i = 0; i < columnNames.size() && i < row.length; i++) {
-                record.put(columnNames.get(i), row[i]);
+            if (singleColumn) {
+                record.put(columnNames.getFirst(), row);
+            } else {
+                Object[] cols = (Object[]) row;
+                for (int i = 0; i < columnNames.size() && i < cols.length; i++) {
+                    record.put(columnNames.get(i), cols[i]);
+                }
             }
-            records.add(record);
+            return record;
+        });
+    }
+
+    /**
+     * Builds an AND UPDATED_BY IN (...) clause from the comma-separated whitelist.
+     * Returns empty string when whitelist is null or blank.
+     */
+    private String buildUpdatedByFilter(String serviceNameWhitelist) {
+        if (serviceNameWhitelist == null || serviceNameWhitelist.isBlank()) {
+            return "";
         }
-        return records;
+        String[] names = serviceNameWhitelist.split(",");
+        String inClause = Arrays.stream(names)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(s -> "'" + s + "'")
+                .collect(Collectors.joining(", "));
+        return inClause.isEmpty() ? "" : " AND UPDATED_BY IN (" + inClause + ")";
+    }
+
+    // ==================== Merge Helpers ====================
+
+    private Map<String, Object> advance(Iterator<Map<String, Object>> iter) {
+        return iter.hasNext() ? iter.next() : null;
+    }
+
+    private String buildKey(Map<String, Object> record, List<String> primaryFields) {
+        return primaryFields.stream()
+                .map(pk -> String.valueOf(record.get(pk.trim())))
+                .collect(Collectors.joining("||"));
+    }
+
+    private int compareKeys(String msKey, String soiKey) {
+        if (msKey == null) return 1;   // null ms key → advance soi (ms exhausted)
+        if (soiKey == null) return -1;  // null soi key → advance ms (soi exhausted)
+        return msKey.compareTo(soiKey);
+    }
+
+    private void addToHistoryBatch(List<ComparatorHistoryEntity> batch,
+                                   ComparatorConfigEntity config,
+                                   List<String> differentFields, List<String> tableFields,
+                                   String status, Map<String, Object> msRecord, Map<String, Object> soiRecord) {
+        String msValues = msRecord != null ? convertToJson(msRecord) : "MISSING";
+        String soiValues = soiRecord != null ? convertToJson(soiRecord) : "MISSING";
+        String diffFields = differentFields.isEmpty()
+                ? String.join(",", tableFields)
+                : String.join(",", differentFields);
+
+        batch.add(ComparatorHistoryEntity.builder()
+                .serviceId(config.getServiceId())
+                .tableName(config.getTableName())
+                .fieldsName(diffFields)
+                .comparatorExecutionStatus(status)
+                .msTableValues(msValues)
+                .soiTableValues(soiValues)
+                .build());
+    }
+
+    private void flushBatch(List<ComparatorHistoryEntity> batch) {
+        historyRepository.saveAll(batch);
+        batch.clear();
     }
 
     // ==================== Comparison Helpers ====================
-
-    private Map<String, List<Map<String, Object>>> groupRecordsByKey(
-            List<Map<String, Object>> records, List<String> primaryFields) {
-        Map<String, List<Map<String, Object>>> map = new LinkedHashMap<>();
-        for (Map<String, Object> record : records) {
-            String key = primaryFields.stream()
-                    .map(primaryKey -> String.valueOf(record.get(primaryKey.trim())))
-                    .collect(Collectors.joining("||"));
-            map.computeIfAbsent(key, k -> new ArrayList<>()).add(record);
-        }
-        return map;
-    }
 
     private List<String> findDifferentFields(
             Map<String, Object> msRecord, Map<String, Object> soiRecord,
@@ -347,11 +465,31 @@ public class ComparisonService {
         List<String> differentFields = new ArrayList<>();
         for (String field : fieldsToCompare) {
             String fieldName = field.trim();
-            if (!Objects.equals(msRecord.get(fieldName), soiRecord.get(fieldName))) {
+            if (!valuesAreEqual(msRecord.get(fieldName), soiRecord.get(fieldName))) {
                 differentFields.add(fieldName);
             }
         }
         return differentFields;
+    }
+
+    private boolean valuesAreEqual(Object a, Object b) {
+        if (Objects.equals(a, b)) return true;
+        if (a == null || b == null) return false;
+        // Timestamp tolerance: truncate to seconds before comparing
+        LocalDateTime dtA = toLocalDateTimeSeconds(a);
+        LocalDateTime dtB = toLocalDateTimeSeconds(b);
+        if (dtA != null && dtB != null) return dtA.equals(dtB);
+        return false;
+    }
+
+    private LocalDateTime toLocalDateTimeSeconds(Object value) {
+        if (value instanceof LocalDateTime ldt) {
+            return ldt.truncatedTo(ChronoUnit.SECONDS);
+        }
+        if (value instanceof Timestamp ts) {
+            return ts.toLocalDateTime().truncatedTo(ChronoUnit.SECONDS);
+        }
+        return null;
     }
 
     private String determineOverallStatus(int totalConfigs, List<String> noRecordTables, List<String> errorTables) {
@@ -445,6 +583,7 @@ public class ComparisonService {
         existing.setTableFields(updatedConfig.getTableFields());
         existing.setPrimaryFields(updatedConfig.getPrimaryFields());
         existing.setExecutionStatus(updatedConfig.getExecutionStatus());
+        existing.setServiceNameWhitelist(updatedConfig.getServiceNameWhitelist());
         existing.setStartDate(updatedConfig.getStartDate());
         existing.setEndDate(updatedConfig.getEndDate());
 

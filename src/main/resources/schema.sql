@@ -1,5 +1,23 @@
-  -- Schema for comparison results table
+-- Schema for comparison results table
 -- This table will be created in database 2 to store comparison results
+
+-- =====================================================================
+-- ALTER: Add service_name_whitelist to COMPARATOR_CONFIG
+-- Comma-separated list of service names used to filter target table rows
+-- by the UPDATED_BY column. Leave NULL to skip UPDATED_BY filtering.
+-- =====================================================================
+ALTER TABLE COMPARATOR_CONFIG
+    ADD COLUMN IF NOT EXISTS service_name_whitelist TEXT NULL;
+
+-- =====================================================================
+-- ALTER: Add UPDATED_BY to CORRESPONDENCE_REQ (target table in both DBs)
+-- Values correspond to the service_id in COMPARATOR_CONFIG.
+-- This column is used as an additional WHERE filter during comparison.
+-- =====================================================================
+ALTER TABLE CORRESPONDENCE_REQ
+    ADD COLUMN IF NOT EXISTS UPDATED_BY VARCHAR(100) NULL;
+
+CREATE INDEX IF NOT EXISTS idx_correspondence_req_updated_by ON CORRESPONDENCE_REQ (UPDATED_BY);
 
 CREATE TABLE IF NOT EXISTS comparison_results (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,

@@ -79,14 +79,16 @@ class ComparisonServiceTest {
     private Query mockQueryWithResults(EntityManager em, List<Object[]> results) {
         Query query = mock(Query.class);
         when(em.createNativeQuery(anyString())).thenReturn(query);
-        when(query.getResultList()).thenReturn(results);
+        when(query.setHint(anyString(), any())).thenReturn(query);
+        when(query.getResultStream()).thenReturn(results.stream());
         return query;
     }
 
     private void mockQueryWithException(EntityManager em, RuntimeException ex) {
         Query query = mock(Query.class);
         when(em.createNativeQuery(anyString())).thenReturn(query);
-        when(query.getResultList()).thenThrow(ex);
+        when(query.setHint(anyString(), any())).thenReturn(query);
+        when(query.getResultStream()).thenThrow(ex);
     }
 
     /** Helper to create a single-element list of Object[] without varargs ambiguity on JDK 25 */
@@ -130,8 +132,7 @@ class ComparisonServiceTest {
             mockQueryWithResults(msEntityManager, singleRow("KEY1", "VAL1", "VAL2"));
             mockQueryWithResults(soiEntityManager, singleRow("KEY1", "VAL1", "VAL2"));
 
-            when(historyRepository.save(any(ComparatorHistoryEntity.class)))
-                    .thenReturn(ComparatorHistoryEntity.builder().id(1L).build());
+            when(historyRepository.saveAll(anyList())).thenReturn(List.of());
             when(configRepository.save(any(ComparatorConfigEntity.class))).thenReturn(config);
 
             ComparisonResponse response = comparisonService.compareTableRecords(request);
@@ -156,7 +157,7 @@ class ComparisonServiceTest {
             mockQueryWithResults(msEntityManager, singleRow("KEY1", "VAL1", "VAL2"));
             mockQueryWithResults(soiEntityManager, singleRow("KEY1", "DIFFERENT", "VAL2"));
 
-            when(historyRepository.save(any())).thenReturn(ComparatorHistoryEntity.builder().id(1L).build());
+            when(historyRepository.saveAll(anyList())).thenReturn(List.of());
             when(configRepository.save(any())).thenReturn(config);
 
             ComparisonResponse response = comparisonService.compareTableRecords(request);
@@ -180,7 +181,7 @@ class ComparisonServiceTest {
                     new Object[]{"KEY2", "V3", "V4"}
             ));
 
-            when(historyRepository.save(any())).thenReturn(ComparatorHistoryEntity.builder().id(1L).build());
+            when(historyRepository.saveAll(anyList())).thenReturn(List.of());
             when(configRepository.save(any())).thenReturn(config);
 
             ComparisonResponse response = comparisonService.compareTableRecords(request);
@@ -204,7 +205,7 @@ class ComparisonServiceTest {
             ));
             mockQueryWithResults(soiEntityManager, singleRow("KEY1", "V1", "V2"));
 
-            when(historyRepository.save(any())).thenReturn(ComparatorHistoryEntity.builder().id(1L).build());
+            when(historyRepository.saveAll(anyList())).thenReturn(List.of());
             when(configRepository.save(any())).thenReturn(config);
 
             ComparisonResponse response = comparisonService.compareTableRecords(request);
@@ -343,11 +344,17 @@ class ComparisonServiceTest {
             when(msEntityManager.createNativeQuery(contains("TABLE2"))).thenReturn(q3);
             when(soiEntityManager.createNativeQuery(contains("TABLE2"))).thenReturn(q4);
 
-            when(q1.getResultList()).thenReturn(singleRow("K1", "V1", "V2"));
-            when(q2.getResultList()).thenReturn(singleRow("K1", "V1", "V2"));
-            when(q3.getResultList()).thenReturn(Collections.emptyList());
-            when(q4.getResultList()).thenReturn(Collections.emptyList());
+            when(q1.setHint(anyString(), any())).thenReturn(q1);
+            when(q2.setHint(anyString(), any())).thenReturn(q2);
+            when(q3.setHint(anyString(), any())).thenReturn(q3);
+            when(q4.setHint(anyString(), any())).thenReturn(q4);
 
+            when(q1.getResultStream()).thenReturn(singleRow("K1", "V1", "V2").stream());
+            when(q2.getResultStream()).thenReturn(singleRow("K1", "V1", "V2").stream());
+            when(q3.getResultStream()).thenReturn(Collections.emptyList().stream());
+            when(q4.getResultStream()).thenReturn(Collections.emptyList().stream());
+
+            when(historyRepository.saveAll(anyList())).thenReturn(List.of());
             when(historyRepository.save(any())).thenReturn(ComparatorHistoryEntity.builder().id(1L).build());
             when(configRepository.save(any())).thenReturn(config1);
 
@@ -379,7 +386,7 @@ class ComparisonServiceTest {
             mockQueryWithResults(msEntityManager, msResults);
             mockQueryWithResults(soiEntityManager, soiResults);
 
-            when(historyRepository.save(any())).thenReturn(ComparatorHistoryEntity.builder().id(1L).build());
+            when(historyRepository.saveAll(anyList())).thenReturn(List.of());
             when(configRepository.save(any())).thenReturn(config);
 
             ComparisonResponse response = comparisonService.compareTableRecords(request);

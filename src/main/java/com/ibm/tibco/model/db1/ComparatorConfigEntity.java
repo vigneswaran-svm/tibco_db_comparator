@@ -35,6 +35,9 @@ public class ComparatorConfigEntity {
     @Column(name = "execution_status", nullable = false, length = 1)
     private String executionStatus;
 
+    @Column(name = "service_name_whitelist", columnDefinition = "TEXT")
+    private String serviceNameWhitelist;
+
     @Column(name = "start_date", nullable = false)
     private LocalDateTime startDate;
 

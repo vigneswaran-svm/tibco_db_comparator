@@ -8,7 +8,7 @@ class MainTest {
 
     @Test
     void shouldCreateMainInstance() {
-        Main main = new Main();
+        TableComparatorApplication main = new TableComparatorApplication();
         assertNotNull(main);
     }
 }

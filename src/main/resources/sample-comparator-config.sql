@@ -2,6 +2,8 @@
 -- Run this in TIBCO_SOI database
 
 -- Insert sample configuration for notification_log comparison
+-- service_name_whitelist: comma-separated UPDATED_BY values to filter rows in target table.
+-- Set to NULL to compare all rows regardless of UPDATED_BY.
 INSERT INTO COMPARATOR_CONFIG (
     service_id,
     table_name,
@@ -9,7 +11,8 @@ INSERT INTO COMPARATOR_CONFIG (
     primary_fields,
     execution_status,
     start_date,
-    end_date
+    end_date,
+    service_name_whitelist
 ) VALUES (
     'NOTIFICATION_SERVICE',
     'notification_log',
@@ -17,7 +20,8 @@ INSERT INTO COMPARATOR_CONFIG (
     'notification_id',
     'N',  -- N = enabled for comparison
     '2024-01-01 00:00:00',
-    '2024-12-31 23:59:59'
+    '2024-12-31 23:59:59',
+    'NOTIFICATION_SERVICE,ALERT_SERVICE'  -- only compare rows where UPDATED_BY IN ('NOTIFICATION_SERVICE','ALERT_SERVICE')
 );
 
 -- You can add more configurations for different services/tables

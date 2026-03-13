@@ -32,6 +32,8 @@ class DatabaseConfigTest {
     void shouldHaveDialectFields() {
         ReflectionTestUtils.setField(databaseConfig, "db1Dialect", "org.hibernate.dialect.MariaDBDialect");
         ReflectionTestUtils.setField(databaseConfig, "db1DdlAuto", "none");
+        ReflectionTestUtils.setField(databaseConfig, "db1BatchSize", "50");
+        ReflectionTestUtils.setField(databaseConfig, "db1OrderInserts", "true");
         ReflectionTestUtils.setField(databaseConfig, "db2Dialect", "org.hibernate.dialect.MariaDBDialect");
         ReflectionTestUtils.setField(databaseConfig, "db2DdlAuto", "none");
 
