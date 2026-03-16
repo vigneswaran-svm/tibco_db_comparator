@@ -1,9 +1,12 @@
 -- Sample data for COMPARATOR_CONFIG table
--- Run this in TIBCO_SOI database
+-- Run this in TIBCO_MS database
 
 -- Insert sample configuration for notification_log comparison
--- service_name_whitelist: comma-separated UPDATED_BY values to filter rows in target table.
--- Set to NULL to compare all rows regardless of UPDATED_BY.
+-- ms_service_name_whitelist: comma-separated UPDATED_BY values to filter rows in MS DB.
+-- soi_service_name_whitelist: comma-separated UPDATED_BY values to filter rows in SOI DB.
+-- where_date_field: the date column used in WHERE clause (e.g. LAST_UPDT_TS, CREATED_AT).
+--                   Set to NULL to default to LAST_UPDT_TS.
+-- Set whitelist to NULL to compare all rows regardless of UPDATED_BY.
 INSERT INTO COMPARATOR_CONFIG (
     service_id,
     table_name,
@@ -12,7 +15,9 @@ INSERT INTO COMPARATOR_CONFIG (
     execution_status,
     start_date,
     end_date,
-    service_name_whitelist
+    ms_service_name_whitelist,
+    soi_service_name_whitelist,
+    where_date_field
 ) VALUES (
     'NOTIFICATION_SERVICE',
     'notification_log',
@@ -21,11 +26,13 @@ INSERT INTO COMPARATOR_CONFIG (
     'N',  -- N = enabled for comparison
     '2024-01-01 00:00:00',
     '2024-12-31 23:59:59',
-    'NOTIFICATION_SERVICE,ALERT_SERVICE'  -- only compare rows where UPDATED_BY IN ('NOTIFICATION_SERVICE','ALERT_SERVICE')
+    'NOTIFICATION_SERVICE,ALERT_SERVICE',  -- MS DB: filter UPDATED_BY IN ('NOTIFICATION_SERVICE','ALERT_SERVICE')
+    'NOTIFICATION_SOI,ALERT_SOI',          -- SOI DB: filter UPDATED_BY IN ('NOTIFICATION_SOI','ALERT_SOI')
+    'LAST_UPDT_TS'                         -- date field for WHERE condition
 );
 
 -- You can add more configurations for different services/tables
--- Example for another service:
+-- Example for another service using a different date column:
 /*
 INSERT INTO COMPARATOR_CONFIG (
     service_id,
@@ -34,7 +41,8 @@ INSERT INTO COMPARATOR_CONFIG (
     primary_fields,
     execution_status,
     start_date,
-    end_date
+    end_date,
+    where_date_field
 ) VALUES (
     'ORDER_SERVICE',
     'order_log',
@@ -42,7 +50,8 @@ INSERT INTO COMPARATOR_CONFIG (
     'order_id',
     'N',
     '2024-01-01 00:00:00',
-    '2024-12-31 23:59:59'
+    '2024-12-31 23:59:59',
+    'CREATED_AT'  -- uses CREATED_AT instead of LAST_UPDT_TS
 );
 */
 

@@ -192,7 +192,7 @@ public class ComparisonService {
         boolean soiError = false;
 
         try {
-            msStreamOpened = streamRecords(msEntityManager, config, tableFields, primaryFields);
+            msStreamOpened = streamRecords(msEntityManager, config, tableFields, primaryFields, config.getMsServiceNameWhitelist());
         } catch (Exception e) {
             log.error("Error fetching MS records for table '{}': {}", config.getTableName(), e.getMessage());
             msStreamOpened = Stream.empty();
@@ -200,7 +200,7 @@ public class ComparisonService {
         }
 
         try {
-            soiStreamOpened = streamRecords(soiEntityManager, config, tableFields, primaryFields);
+            soiStreamOpened = streamRecords(soiEntityManager, config, tableFields, primaryFields, config.getSoiServiceNameWhitelist());
         } catch (Exception e) {
             log.error("Error fetching SOI records for table '{}': {}", config.getTableName(), e.getMessage());
             soiStreamOpened = Stream.empty();
@@ -356,7 +356,7 @@ public class ComparisonService {
     @SuppressWarnings("unchecked")
     private Stream<Map<String, Object>> streamRecords(
             EntityManager entityManager, ComparatorConfigEntity config,
-            List<String> fields, List<String> primaryFields) {
+            List<String> fields, List<String> primaryFields, String serviceNameWhitelist) {
 
         Set<String> allFields = new LinkedHashSet<>();
         primaryFields.forEach(f -> allFields.add(f.trim()));
@@ -369,10 +369,14 @@ public class ComparisonService {
         String startDateStr = config.getStartDate().format(DATE_FORMATTER);
         String endDateStr = config.getEndDate().format(DATE_FORMATTER);
 
-        String updatedByFilter = buildUpdatedByFilter(config.getServiceNameWhitelist());
+        String dateField = (config.getWhereDateField() != null && !config.getWhereDateField().isBlank())
+                ? config.getWhereDateField().trim()
+                : "LAST_UPDT_TS";
+
+        String updatedByFilter = buildUpdatedByFilter(serviceNameWhitelist);
         String sql = String.format(
-                "SELECT %s FROM %s WHERE LAST_UPDT_TS >= '%s' AND LAST_UPDT_TS <= '%s'%s ORDER BY %s",
-                fieldList, config.getTableName(), startDateStr, endDateStr, updatedByFilter, orderBy);
+                "SELECT %s FROM %s WHERE %s >= '%s' AND %s <= '%s'%s ORDER BY %s",
+                fieldList, config.getTableName(), dateField, startDateStr, dateField, endDateStr, updatedByFilter, orderBy);
 
         log.debug("Executing streaming query: {}", sql);
 
@@ -583,7 +587,9 @@ public class ComparisonService {
         existing.setTableFields(updatedConfig.getTableFields());
         existing.setPrimaryFields(updatedConfig.getPrimaryFields());
         existing.setExecutionStatus(updatedConfig.getExecutionStatus());
-        existing.setServiceNameWhitelist(updatedConfig.getServiceNameWhitelist());
+        existing.setMsServiceNameWhitelist(updatedConfig.getMsServiceNameWhitelist());
+        existing.setSoiServiceNameWhitelist(updatedConfig.getSoiServiceNameWhitelist());
+        existing.setWhereDateField(updatedConfig.getWhereDateField());
         existing.setStartDate(updatedConfig.getStartDate());
         existing.setEndDate(updatedConfig.getEndDate());
 

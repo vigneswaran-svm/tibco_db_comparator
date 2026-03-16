@@ -35,8 +35,14 @@ public class ComparatorConfigEntity {
     @Column(name = "execution_status", nullable = false, length = 1)
     private String executionStatus;
 
-    @Column(name = "service_name_whitelist", columnDefinition = "TEXT")
-    private String serviceNameWhitelist;
+    @Column(name = "ms_service_name_whitelist", columnDefinition = "MEDIUMTEXT")
+    private String msServiceNameWhitelist;
+
+    @Column(name = "soi_service_name_whitelist", columnDefinition = "MEDIUMTEXT")
+    private String soiServiceNameWhitelist;
+
+    @Column(name = "where_date_field", length = 50)
+    private String whereDateField;
 
     @Column(name = "start_date", nullable = false)
     private LocalDateTime startDate;

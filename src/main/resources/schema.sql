@@ -2,12 +2,21 @@
 -- This table will be created in database 2 to store comparison results
 
 -- =====================================================================
--- ALTER: Add service_name_whitelist to COMPARATOR_CONFIG
--- Comma-separated list of service names used to filter target table rows
--- by the UPDATED_BY column. Leave NULL to skip UPDATED_BY filtering.
+-- ALTER: Add ms_service_name_whitelist, soi_service_name_whitelist,
+--        and where_date_field to COMPARATOR_CONFIG
+-- ms_service_name_whitelist: comma-separated UPDATED_BY values for MS DB
+-- soi_service_name_whitelist: comma-separated UPDATED_BY values for SOI DB
+-- where_date_field: dynamic date column name used in WHERE clause
+--                   (defaults to LAST_UPDT_TS when NULL)
 -- =====================================================================
 ALTER TABLE COMPARATOR_CONFIG
-    ADD COLUMN IF NOT EXISTS service_name_whitelist TEXT NULL;
+    ADD COLUMN IF NOT EXISTS ms_service_name_whitelist MEDIUMTEXT NULL,
+    ADD COLUMN IF NOT EXISTS soi_service_name_whitelist MEDIUMTEXT NULL,
+    ADD COLUMN IF NOT EXISTS where_date_field VARCHAR(50) NULL;
+
+-- If migrating from old service_name_whitelist column:
+-- UPDATE COMPARATOR_CONFIG SET ms_service_name_whitelist = service_name_whitelist WHERE service_name_whitelist IS NOT NULL;
+-- ALTER TABLE COMPARATOR_CONFIG DROP COLUMN IF EXISTS service_name_whitelist;
 
 -- =====================================================================
 -- ALTER: Add UPDATED_BY to CORRESPONDENCE_REQ (target table in both DBs)
