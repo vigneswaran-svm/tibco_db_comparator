@@ -20,9 +20,10 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.math.BigDecimal;
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -56,7 +57,6 @@ public class ComparisonService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     // ==================== Comparison ====================
 
@@ -366,21 +366,22 @@ public class ComparisonService {
         String orderBy = primaryFields.stream()
                 .map(String::trim)
                 .collect(Collectors.joining(", "));
-        String startDateStr = config.getStartDate().format(DATE_FORMATTER);
-        String endDateStr = config.getEndDate().format(DATE_FORMATTER);
-
         String dateField = (config.getWhereDateField() != null && !config.getWhereDateField().isBlank())
                 ? config.getWhereDateField().trim()
                 : "LAST_UPDT_TS";
 
         String updatedByFilter = buildUpdatedByFilter(serviceNameWhitelist);
+        // Use JDBC named parameters so each DB's driver handles date type conversion natively.
+        // This avoids Oracle ORA-01861 errors caused by string-formatted date literals.
         String sql = String.format(
-                "SELECT %s FROM %s WHERE %s >= '%s' AND %s <= '%s'%s ORDER BY %s",
-                fieldList, config.getTableName(), dateField, startDateStr, dateField, endDateStr, updatedByFilter, orderBy);
+                "SELECT %s FROM %s WHERE %s >= :startDate AND %s <= :endDate%s ORDER BY %s",
+                fieldList, config.getTableName(), dateField, dateField, updatedByFilter, orderBy);
 
         log.debug("Executing streaming query: {}", sql);
 
         Query query = entityManager.createNativeQuery(sql);
+        query.setParameter("startDate", config.getStartDate());
+        query.setParameter("endDate", config.getEndDate());
         query.setHint("org.hibernate.fetchSize", fetchSize);
 
         List<String> columnNames = new ArrayList<>(allFields);
@@ -479,11 +480,26 @@ public class ComparisonService {
     private boolean valuesAreEqual(Object a, Object b) {
         if (Objects.equals(a, b)) return true;
         if (a == null || b == null) return false;
-        // Timestamp tolerance: truncate to seconds before comparing
+
+        // Temporal: truncate to seconds to absorb sub-second precision differences between DBs
         LocalDateTime dtA = toLocalDateTimeSeconds(a);
         LocalDateTime dtB = toLocalDateTimeSeconds(b);
-        if (dtA != null && dtB != null) return dtA.equals(dtB);
-        return false;
+        if (dtA != null || dtB != null) {
+            // At least one side is temporal — only equal if both are temporal and match
+            return dtA != null && dtA.equals(dtB);
+        }
+
+        // Numeric: compare by value to handle BigDecimal (Oracle) vs Long/Integer (MariaDB)
+        if (a instanceof Number && b instanceof Number) {
+            try {
+                return new BigDecimal(a.toString()).compareTo(new BigDecimal(b.toString())) == 0;
+            } catch (NumberFormatException ignored) {
+                // fall through to string comparison
+            }
+        }
+
+        // String: trim trailing spaces to handle Oracle CHAR padding
+        return a.toString().trim().equals(b.toString().trim());
     }
 
     private LocalDateTime toLocalDateTimeSeconds(Object value) {
@@ -492,6 +508,9 @@ public class ComparisonService {
         }
         if (value instanceof Timestamp ts) {
             return ts.toLocalDateTime().truncatedTo(ChronoUnit.SECONDS);
+        }
+        if (value instanceof Date d) {
+            return d.toLocalDate().atStartOfDay();
         }
         return null;
     }
